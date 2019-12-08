@@ -1,6 +1,6 @@
 {
   "client_id": "652593351513604117",
-  "token": "NjUyNTkzMzUxNTEzNjA0MTE3.XerxPw.GY6DWqEZCtkB8p22CVAXNRtgc7A",
-  "prefix": "!",
-  "permissions": "36710400"
+  "token": "NjUyNTkzMzUxNTEzNjA0MTE3.XewRzg.fO4q6112edxC7Qw9_hifVTQ7P4U",
+  "link": "https://discordapp.com/api/oauth2/authorize?client_id=652593351513604117&permissions=0&scope=bot",
+  "prefix": "!"
 }
