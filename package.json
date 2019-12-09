@@ -20,7 +20,7 @@
   "dependencies": {
     "@google-cloud/speech": "^3.5.1",
     "discord.js": "^11.5.1",
-    "ffmpeg-binaries": "^3.2.2-3",
+    "ffmpeg-binaries": "^4.0.0",
     "ffmpeg-static": "^2.7.0",
     "opusscript": "0.0.7"
   }

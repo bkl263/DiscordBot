@@ -5,7 +5,8 @@ const { Transform } = require('stream')
 const googleSpeech = require('@google-cloud/speech')
 const client =  new Discord.Client()
 const googleSpeechClient = new googleSpeech.SpeechClient()
-var dispatcher;
+var dispatcher
+var connections = {}
 
 function convertBufferTo1Channel(buffer) {
   const convertedBuffer = Buffer.alloc(buffer.length / 2)
@@ -41,7 +42,8 @@ function join(message) {
     message.member.voiceChannel.join().then(connection => {
       message.channel.send(`Joined ${message.member.voiceChannel.name}`)
       console.log(`Successfully joined ${message.guild.nameAcronym}.${message.member.voiceChannel.name}`)
-      connection.playFile('C:/Users/WhoDis/Desktop/test.mp3')
+      var disp = connection.playFile('C:/Users/user/Desktop/test.mp3')
+      connections[message.guild.id] = { connection: connection, dispatcher: disp }
     })
     .catch(console.error)
   }
@@ -76,7 +78,6 @@ client.on('error', e => {
 client.on('guildMemberSpeaking', (member, speaking) => {
   if(speaking) {
     console.log(`I am listening to ${member.displayName}`)
-    speaking != speaking
   }
 })
 
