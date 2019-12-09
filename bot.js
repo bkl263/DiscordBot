@@ -6,23 +6,24 @@ const client =  new Discord.Client()
 var dispatcher;
 
 function isACommand(message) {
-  if (message.content[0] == config.prefix) {
+  if (message.content[0] == config.serverSettings[message.guild.id].prefix) {
     return true
   }
   return false
 }
 
-async function join(message) {
-  if (message.member.voiceChannel) {
-    let connection = await message.member.voiceChannel.join()
-    console.log(`Successfully joined ${message.guild.nameAcronym}.${message.member.voiceChannel.name}`)
-    message.channel.send(`Joined ${message.member.voiceChannel.name}`)
-    connection.on('speaking', (user, speaking) => {
-      if(speaking) {
-        console.log(`I am listening to ${user.username} in ${connection.channel.guild.nameAcronym}.${connection.channel.name}` )
-        return
-      }
+function join(message) {
+  if(message.member.voiceChannel) {
+    message.member.voiceChannel.join().then(connection => {
+      connection.on('speaking', (user, speaking) => {
+        if(speaking) {
+          console.log(`I am listening to ${user.username} in ${connection.channel.guild.nameAcronym}.${connection.channel.name}` )
+          return
+        }
+      })
     })
+    message.channel.send(`Joined ${message.member.voiceChannel.name}`)
+    console.log(`Successfully joined ${message.guild.nameAcronym}.${message.member.voiceChannel.name}`)
   }
   else {
     console.log(`Voice connection attempt failed: User not in a voice channel`)
@@ -54,11 +55,24 @@ client.on('error', e => {
 
 client.on('guildCreate',  guild => {
   console.log(`Joined a new guild: ${guild.name}`)
+  fs.readFile('./config.json','utf8', (err, data) => {
+    if (err) {console.log("File read error")}
+    else {
+      var configFile = JSON.parse(data)
+      var serverSettings = {}
+      serverSettings.prefix = configFile.defaultPrefix
+      configFile.serverSettings[guild.id] = serverSettings
+      fs.writeFileSync('./config.json', JSON.stringify(configFile, null, 2), err => {
+        if (err) {console.log("File write error")}
+        else{ console.log("Successfully updated prefix");}
+      })
+    }
+  })
 })
 
-client.on('message', async message => {
+client.on('message', message => {
   if (isACommand(message)) {
-    messageArray = message.content.toLowerCase().substring(1).split(" ")
+    let messageArray = message.content.toLowerCase().substring(1).split(" ")
     switch(messageArray[0]) {
 
       case 'join':
@@ -84,15 +98,14 @@ client.on('message', async message => {
         let validCharacters = ['!', '$', '`','~','%','&','*']
         //if command is given with arguement and the arguement given is a character and inside the validCharacters array
         if (messageArray.length == 2 && messageArray[1].length == 1 && validCharacters.includes(messageArray[1])) {
-          config.prefix = messageArray[1]
+          config.serverSettings[message.guild.id].prefix = messageArray[1]
           fs.readFile('./config.json','utf8', (err, data) => {
             if (err) {console.log("File read error")}
             else {
-              var updatedConfig = JSON.parse(data)
-              updatedConfig.prefix = messageArray[1]
+              var configFile = JSON.parse(data)
+              configFile.serverSettings[message.guild.id].prefix = messageArray[1]
               console.log(`Updated configuration file`)
-              console.log(updatedConfig)
-              fs.writeFileSync('./config.json', JSON.stringify(updatedConfig, null, 2), err => {
+              fs.writeFileSync('./config.json', JSON.stringify(configFile, null, 2), err => {
                 if (err) {console.log("File write error")}
                 else{ console.log("Successfully updated prefix");}
               })

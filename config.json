@@ -1,6 +1,14 @@
 {
   "client_id": "652593351513604117",
-  "token": "NjUyNTkzMzUxNTEzNjA0MTE3.XewRzg.fO4q6112edxC7Qw9_hifVTQ7P4U",
-  "link": "https://discordapp.com/api/oauth2/authorize?client_id=652593351513604117&permissions=0&scope=bot",
-  "prefix": "!"
+  "token": "NjUyNTkzMzUxNTEzNjA0MTE3.Xe3WtA.Y3_QzCLp-CN7TqqXhPCJLT_h-nE",
+  "link": "https://discordapp.com/api/oauth2/authorize?client_id=652593351513604117&permissions=36710400&scope=bot",
+  "defaultPrefix": "!",
+  "serverSettings": {
+    "434506160456990721": {
+      "prefix": "!"
+    },
+    "484559871501664270": {
+      "prefix": "*"
+    }
+  }
 }
