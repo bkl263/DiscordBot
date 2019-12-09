@@ -1,9 +1,33 @@
 const Discord = require("discord.js")
 const fs = require('fs')
 var config = require("./config.json")
+const { Transform } = require('stream')
+const googleSpeech = require('@google-cloud/speech')
 const client =  new Discord.Client()
-
+const googleSpeechClient = new googleSpeech.SpeechClient()
 var dispatcher;
+
+function convertBufferTo1Channel(buffer) {
+  const convertedBuffer = Buffer.alloc(buffer.length / 2)
+
+  for (let i = 0; i < convertedBuffer.length / 2; i++) {
+    const uint16 = buffer.readUInt16LE(i * 4)
+    convertedBuffer.writeUInt16LE(uint16, i * 2)
+  }
+
+  return convertedBuffer
+}
+
+class ConvertTo1ChannelStream extends Transform {
+  constructor(source, options) {
+    super(options)
+  }
+
+  _transform(data, encoding, next) {
+    next(null, convertBufferTo1Channel(data))
+  }
+}
+
 
 function isACommand(message) {
   if (message.content[0] == config.serverSettings[message.guild.id].prefix) {
@@ -15,15 +39,11 @@ function isACommand(message) {
 function join(message) {
   if(message.member.voiceChannel) {
     message.member.voiceChannel.join().then(connection => {
-      connection.on('speaking', (user, speaking) => {
-        if(speaking) {
-          console.log(`I am listening to ${user.username} in ${connection.channel.guild.nameAcronym}.${connection.channel.name}` )
-          return
-        }
-      })
+      message.channel.send(`Joined ${message.member.voiceChannel.name}`)
+      console.log(`Successfully joined ${message.guild.nameAcronym}.${message.member.voiceChannel.name}`)
+      connection.playFile('C:/Users/WhoDis/Desktop/test.mp3')
     })
-    message.channel.send(`Joined ${message.member.voiceChannel.name}`)
-    console.log(`Successfully joined ${message.guild.nameAcronym}.${message.member.voiceChannel.name}`)
+    .catch(console.error)
   }
   else {
     console.log(`Voice connection attempt failed: User not in a voice channel`)
@@ -53,7 +73,14 @@ client.on('error', e => {
   console.error(e)
 })
 
-client.on('guildCreate',  guild => {
+client.on('guildMemberSpeaking', (member, speaking) => {
+  if(speaking) {
+    console.log(`I am listening to ${member.displayName}`)
+    speaking != speaking
+  }
+})
+
+client.on('guildCreate', guild => {
   console.log(`Joined a new guild: ${guild.name}`)
   fs.readFile('./config.json','utf8', (err, data) => {
     if (err) {console.log("File read error")}
@@ -80,7 +107,7 @@ client.on('message', message => {
         break;
 
       case 'disconnect':
-        console.log(`Attempting disconnnection`)
+        console.log(`Attempting disconnection`)
         if (client.voiceConnections.get(message.guild.id)) {
           let connection = client.voiceConnections.get(message.guild.id)
           connection.disconnect()

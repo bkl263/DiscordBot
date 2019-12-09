@@ -4,6 +4,7 @@
   "description": "discordbot",
   "main": "bot.js",
   "scripts": {
+    "start": "node bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,7 +18,10 @@
   },
   "homepage": "https://github.com/bkl263/DiscordBot#readme",
   "dependencies": {
+    "@google-cloud/speech": "^3.5.1",
     "discord.js": "^11.5.1",
-    "ffmpeg-binaries": "^3.2.2-3"
+    "ffmpeg-binaries": "^3.2.2-3",
+    "ffmpeg-static": "^2.7.0",
+    "opusscript": "0.0.7"
   }
 }
