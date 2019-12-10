@@ -1,11 +1,13 @@
 const Discord = require("discord.js")
 const fs = require('fs')
 var config = require("./config.json")
-const { Transform } = require('stream')
-const googleSpeech = require('@google-cloud/speech')
+const tespa = require("./index.js") //consider renaming index.js
 const client =  new Discord.Client()
-const googleSpeechClient = new googleSpeech.SpeechClient()
-var dispatcher
+const { Transform } = require('stream')
+
+// const googleSpeech = require('@google-cloud/speech')
+// const googleSpeechClient = new googleSpeech.SpeechClient()
+
 var connections = {}
 
 function convertBufferTo1Channel(buffer) {
@@ -136,13 +138,18 @@ client.on('message', message => {
               fs.writeFileSync('./config.json', JSON.stringify(configFile, null, 2), err => {
                 if (err) {console.log("File write error")}
                 else{ console.log("Successfully updated prefix");}
+                //need to write discord response on success or failure
               })
             }
           })
         }
 
         break;
-
+      case 'getmatches':
+        tespa.getMatches().then(matches =>{
+          message.channel.send()
+        })
+        break;
       default:
         console.log("Unresolved Case")
 
