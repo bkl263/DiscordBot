@@ -1,42 +1,85 @@
 const Discord = require("discord.js")
 const fs = require('fs')
 var config = require("./config.json")
-const tespa = require("./index.js") //consider renaming index.js
+const tespa = require("./index.js") //consider renaming index.js to something else
 const client =  new Discord.Client()
-const { Transform } = require('stream')
+// const { Transform } = require('stream')
 
 // const googleSpeech = require('@google-cloud/speech')
 // const googleSpeechClient = new googleSpeech.SpeechClient()
 
 var connections = {}
 
-function convertBufferTo1Channel(buffer) {
-  const convertedBuffer = Buffer.alloc(buffer.length / 2)
-
-  for (let i = 0; i < convertedBuffer.length / 2; i++) {
-    const uint16 = buffer.readUInt16LE(i * 4)
-    convertedBuffer.writeUInt16LE(uint16, i * 2)
-  }
-
-  return convertedBuffer
+function embedMatch(match) {
+  return {embed: {
+    color: 5703308,
+    title: match.name,
+    url: "https://google.com",
+    description: match.university,
+    fields: [{
+      name: "Time",
+      value: `${convertTime(match.time)}`,
+      inline: true
+    },
+    { name: "Maps",
+      value: `${match.maps[0]} ${match.maps[1]} ${match.maps[2]}`,
+      inline: true
+    },
+    {
+      name: "Contact",
+      value: `BattleTag: ${match.bnet}
+              Discord: ${match.discord}`
+    }],
+    footer: {
+      text: "© btDiscordBot"
+    }
+  }}
 }
 
-class ConvertTo1ChannelStream extends Transform {
-  constructor(source, options) {
-    super(options)
-  }
+function convertTime(dateObj) { //may consider not using javascript Date since a lot of it is repetative but hey its there
+  monthsArr = ["January", "February", "March", "April", "May", "June", "July", "Augest", "September", "October", "November", "December"]
+  suffix = ["th","st","nd","rd"]
+  var dateString;
 
-  _transform(data, encoding, next) {
-    next(null, convertBufferTo1Channel(data))
-  }
+  let month = monthsArr[dateObj.getMonth()]
+  let date = dateObj.getDate()
+  let hours = dateObj.getHours()
+  let minutes = dateObj.getMinutes()
+  let meridiem = "AM"
+
+  if ((date % 10) > 3) { date = date.toString() + 'th' }
+  else { date = date.toString() + suffix[date] }
+  if(hours > 12) { hours -= 12; meridiem = "PM" }
+  if (minutes < 10) { minutes = "0" + minutes.toString() }
+
+  dateString = `${month} ${date} ${hours}:${minutes}${meridiem} EST` //hours is wrong (in PST) change this in index.js not here
+  return dateString
 }
+
+// function convertBufferTo1Channel(buffer) {
+//   const convertedBuffer = Buffer.alloc(buffer.length / 2)
+//
+//   for (let i = 0; i < convertedBuffer.length / 2; i++) {
+//     const uint16 = buffer.readUInt16LE(i * 4)
+//     convertedBuffer.writeUInt16LE(uint16, i * 2)
+//   }
+//
+//   return convertedBuffer
+// }
+//
+// class ConvertTo1ChannelStream extends Transform {
+//   constructor(source, options) {
+//     super(options)
+//   }
+//
+//   _transform(data, encoding, next) {
+//     next(null, convertBufferTo1Channel(data))
+//   }
+// }
 
 
 function isACommand(message) {
-  if (message.content[0] == config.serverSettings[message.guild.id].prefix) {
-    return true
-  }
-  return false
+  return message.content[0] == config.serverSettings[message.guild.id].prefix
 }
 
 function join(message) {
@@ -61,7 +104,7 @@ function play(message) {
     dispatcher = connection.playFile('C:/Users/WhoDis/Desktop/test.mp3');
   }
   else {
-    message.reply("I must !join a voice channel first!")
+    message.reply(`I must ${config.serverSettings[message.guild.id].prefix}join a voice channel first!`)
   }
 }
 
@@ -75,12 +118,6 @@ client.on('warn', warn => {
 
 client.on('error', e => {
   console.error(e)
-})
-
-client.on('guildMemberSpeaking', (member, speaking) => {
-  if(speaking) {
-    console.log(`I am listening to ${member.displayName}`)
-  }
 })
 
 client.on('guildCreate', guild => {
@@ -138,21 +175,36 @@ client.on('message', message => {
               fs.writeFileSync('./config.json', JSON.stringify(configFile, null, 2), err => {
                 if (err) {console.log("File write error")}
                 else{ console.log("Successfully updated prefix");}
-                //need to write discord response on success or failure
+                //need to write discord response on success
               })
             }
           })
         }
-
+        else {
+          message.reply(`Please ensure you are using a valid argument for ${config.serverSettings[message.guild.id].prefix}setprefix`)
+        }
         break;
+
       case 'getmatches':
-        tespa.getMatches().then(matches =>{
-          message.channel.send()
+        tespa.getMatches().then(matches => {
+          message.channel.send(embedMatch(matches[0]))
+          message.channel.send(embedMatch(matches[1]))
         })
         break;
+
+      case 'clean':
+        try {
+          var deleteAmount = parseInt(messageArray[1]) + 1
+          message.channel.bulkDelete(deleteAmount)
+        }
+        catch(err) {
+          if(messageArray[1]) { message.reply(`Invalid arguement ${messageArray[1]}`) }
+          else {message.channel.bulkDelete(100)}
+        }
+        break;
+
       default:
         console.log("Unresolved Case")
-
     }
   }
 })

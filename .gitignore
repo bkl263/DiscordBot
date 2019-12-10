@@ -1,0 +1,9 @@
+#dependencies
+node_modules/
+
+#configuration files
+config.json
+
+#google auth files
+credentials.json
+token.json
