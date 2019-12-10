@@ -163,7 +163,7 @@ client.on('message', message => {
 
       case 'setprefix':
         let validCharacters = ['!', '$', '`','~','%','&','*']
-        //if command is given with arguement and the arguement given is a character and inside the validCharacters array
+        //if command is given with argument and the argument given is a character and inside the validCharacters array
         if (messageArray.length == 2 && messageArray[1].length == 1 && validCharacters.includes(messageArray[1])) {
           config.serverSettings[message.guild.id].prefix = messageArray[1]
           fs.readFile('./config.json','utf8', (err, data) => {
@@ -193,14 +193,13 @@ client.on('message', message => {
         break;
 
       case 'clean':
-        try {
-          var deleteAmount = parseInt(messageArray[1]) + 1
-          message.channel.bulkDelete(deleteAmount)
+        if(messageArray[1]) {
+          try { message.channel.bulkDelete(parseInt(messageArray[1]) + 1) }
+          catch(err) {
+            message.reply(`Invalid arguement ${messageArray[1]}`)
+          }
         }
-        catch(err) {
-          if(messageArray[1]) { message.reply(`Invalid arguement ${messageArray[1]}`) }
-          else {message.channel.bulkDelete(100)}
-        }
+        else { message.channel.bulkDelete(100) }
         break;
 
       default:
