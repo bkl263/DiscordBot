@@ -14,7 +14,7 @@ function embedMatch(match) {
   return {embed: {
     color: 5703308,
     title: match.name,
-    url: "https://google.com",
+    url: match.link,
     description: match.university,
     fields: [{
       name: "Time",
@@ -36,21 +36,22 @@ function embedMatch(match) {
   }}
 }
 
-function convertTime(dateObj) { //may consider not using javascript Date since a lot of it is repetative but hey its there
-  monthsArr = ["January", "February", "March", "April", "May", "June", "July", "Augest", "September", "October", "November", "December"]
-  suffix = ["th","st","nd","rd"]
+function convertTime(time, region) { //may consider not using javascript Date since a lot of it is repetative but hey its there
   var dateString;
-
-  let month = monthsArr[dateObj.getMonth()]
-  let date = dateObj.getDate()
-  let hours = dateObj.getHours()
-  let minutes = dateObj.getMinutes()
+  let month = time.month
+  let date = time.date
+  let hours = parseInt(time.hours)
+  let minutes = time.minutes
+  let timezone;
   let meridiem = "AM"
 
-  if ((date % 10) > 3) { date = date.toString() + 'th' }
-  else { date = date.toString() + suffix[date] }
-  if(hours > 12) { hours -= 12; meridiem = "PM" }
-  if (minutes < 10) { minutes = "0" + minutes.toString() }
+  hours += 3
+
+  if(hours > 12) {
+    hours %= 24
+    hours -= 12
+    meridiem = "PM" }
+
 
   dateString = `${month} ${date} ${hours}:${minutes}${meridiem} EST` //hours is wrong (in PST) change this in index.js not here
   return dateString
@@ -187,8 +188,8 @@ client.on('message', message => {
 
       case 'getmatches':
         tespa.getMatches().then(matches => {
-          message.channel.send(embedMatch(matches[0]))
-          message.channel.send(embedMatch(matches[1]))
+          message.channel.send(embedMatch(matches.match1))
+          message.channel.send(embedMatch(matches.match2))
         })
         break;
 

@@ -10,9 +10,12 @@ const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 // time.
 const TOKEN_PATH = 'token.json';
 
+//message{} -> googleEmailResponse{}
+//gets a dictionary of gmail messages and returns all tespa related emails in a new dict
+function getTespaEmails() {}
+
 // Load client secrets from a local file.
 function getMatches() {
-
   return new Promise (resolve => {
     fs.readFile('credentials.json', async (err, content) => {
       if (err) return console.log('Error loading client secret file:', err);
@@ -76,7 +79,6 @@ function getNewToken(oAuth2Client, callback) {
     });
   })
 }
-
 /**
  * Lists the labels in the user's account.
  *
@@ -91,22 +93,38 @@ async function parseEmail(auth) {
       if (err) return console.log('The API returned an error: ' + err);
 
       const messages = res.data.messages;
+
       if (messages.length) {
-        messages.forEach((message) => {
+        for (message of messages) {
           gmail.users.messages.get({userId:'me',id:message.id}, async (err,res) => {
             if (err)  {console.log('The API returned an error: ' + err); return}
-            const body = res.data
+            const headers = res.data.payload.headers
+            const filteredHeaders = headers.filter(header => {
+              return header.value.includes('Tespa')
+            })
 
-            await body.payload.headers.forEach((header) => {
-              var ret = header.value
-              const parts = res.data.payload.parts
-              if(ret.includes('Tespa')) { //add case where there are multiple Tespa emails. We want the most current one. Probably have to change the forEach loop 3 lines above.
-                var matchInfo = []
-                //
+            if(filteredHeaders.length) {
+              let hasRead = await new Promise(resolve => {
+                fs.readFile("currentMatches.json", (err,data) => {
+                  if(err) {resolve(false)} //no file found (inital write)
+                  else {
+                    let savedMatches = JSON.parse(data)
+                    if (savedMatches.timestamp < res.data.internalDate) { console.log("New matches found. Updating currentMatches.json"); resolve(false) }  //if this is more recent
+                    else { console.log("Returning currentMatches.json"); resolve(savedMatches); }
+                  }
+                })
+              })
+              console.log(hasRead)
+              if (hasRead) { resolve(hasRead); }
+              else {
+                var matchInfo = {}
+                const parts = res.data.payload.parts
+
                 const messageBody = Buffer.from(parts[1].body.data, "base64").toString();
                 const $ = cheerio.load(messageBody);
                 const spans = $("span")
-                const links = $("links")
+                const links = $("a")
+
                 for (i = 0; i < spans.length; i++) {
                   var text = spans[i].children[0].data
 
@@ -117,9 +135,10 @@ async function parseEmail(auth) {
                       university: spans[i+6].children[0].data.split(":")[1].trim(),
                       name: spans[i+7].children[0].data.split(":")[1].trim(),
                       bnet: spans[i+9].children[0].data.split(":")[1].trim(),
-                      discord: spans[i+10].children[0].data.split(":")[1].trim()
-
+                      discord: spans[i+10].children[0].data.split(":")[1].trim(),
+                      link: links[3].attribs.href
                     }
+
                     i+=11
                     var match2 =  {
                       time: getTime(spans[i+2].children[0].data),
@@ -127,19 +146,28 @@ async function parseEmail(auth) {
                       university: spans[i+6].children[0].data.split(":")[1].trim(),
                       name: spans[i+7].children[0].data.split(":")[1].trim(),
                       bnet: spans[i+8].children[0].data.split(":")[1].trim(),
-                      discord: spans[i+9].children[0].data.split(":")[1].trim()
-
+                      discord: spans[i+9].children[0].data.split(":")[1].trim(),
+                      link: links[4].attribs.href
                     }
-                    matchInfo.push(match1)
-                    matchInfo.push(match2)
-                    resolve(matchInfo) //add links into matchInfo.
+
+                    matchInfo["timestamp"] = res.data.internalDate
+                    matchInfo["match1"] = match1
+                    matchInfo["match2"] = match2
+
+                    fs.writeFileSync("currentMatches.json", JSON.stringify(matchInfo, null, 2), err => {
+                      if(err) { console.log("Error writing to file currentMatches.json")}
+                      else { console.log("Successfully update currentMatches.json")}
+                    })
+                    resolve(matchInfo)
+                    break
                   }
                 }
               }
-            })
+            }
           })
-        });
-      } else {
+        }
+      }
+      else {
         console.log('No messages found.');
         resolve(null)
       }
@@ -150,16 +178,24 @@ async function parseEmail(auth) {
 }
 
 function getTime(string) {
+
   stringArr = string.split(" ")
   var year = new Date().getFullYear()
   var month = stringArr[2]
-  var date = parseInt(stringArr[3])
+  var date = stringArr[3]
   var time = stringArr[5].split(":")
   var hours = parseInt(time[0])
-  if (stringArr[6] == 'PM') { hours += 12; hours = hours.toString() }
+  if (stringArr[6] == 'PM') {
+    hours += 12;
+    hours = hours.toString()
+  }
   var minutes = time[1]
-  var dateString = `${month} ${date} ${year} ${hours}:${minutes}`
-  var dateObj = new Date(`${month} ${date} ${year} ${hours}:${minutes}`)
+  var dateObj = {
+    month: month,
+    date: date,
+    hours: hours,
+    minutes: minutes
+  }
   return dateObj
 }
 
