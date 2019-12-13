@@ -1,7 +1,7 @@
 const Discord = require("discord.js")
 const fs = require('fs')
 var config = require("./config.json")
-const tespa = require("./index.js") //consider renaming index.js to something else
+const tespa = require("./tespa.js") //consider renaming index.js to something else
 const client =  new Discord.Client()
 // const { Transform } = require('stream')
 

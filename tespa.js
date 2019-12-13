@@ -142,7 +142,7 @@ async function parseEmail(auth) {
         const messageBody = Buffer.from(parts[1].body.data, "base64").toString();
         const $ = cheerio.load(messageBody);
         const spans = $("span")
-        const links = $("a")
+        const links = $("a") //links are incorrect fix them
 
         for (i = 0; i < spans.length; i++) {
           var text = spans[i].children[0].data
