@@ -7,3 +7,6 @@ config.json
 #google auth files
 credentials.json
 token.json
+
+#localfiles
+currentMatches.json

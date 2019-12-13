@@ -9,10 +9,40 @@ const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 // created automatically when the authorization flow completes for the first
 // time.
 const TOKEN_PATH = 'token.json';
-
-//message{} -> googleEmailResponse{}
-//gets a dictionary of gmail messages and returns all tespa related emails in a new dict
-function getTespaEmails() {}
+/**
+ * Gets a dictionary of gmail messages and returns the most recent tespa email as a gmail response
+ * @param {google.auth.OAuth2} gmail The OAuth2 client to get token for.
+ * @param {gmail.users.messages.list} messageList The callback for the authorized client.
+ */
+async function filterTespaEmails(gmail, messageList) {
+  let tespaEmails = []
+  let mostRecentEmail;
+  let mostRecentEmailTime = 0
+  for (message of messageList) {
+    await new Promise(resolve => {
+      gmail.users.messages.get({userId:'me',id:message.id}, (err,res) => {
+        if (err)  {console.log('The API returned an error: ' + err); return}
+        else {
+          const headers = res.data.payload.headers
+          const filteredHeaders = headers.filter(header => {
+            return header.value.includes('Tespa')
+          })
+          if (filteredHeaders.length) {
+            tespaEmails.push(res)
+          }
+        }
+        resolve(null)
+      })
+    })
+  }
+  for(email of tespaEmails) {
+    if (parseInt(email.data.internalDate) > mostRecentEmailTime) {
+      mostRecentEmailTime = parseInt(email.data.internalDate)
+      mostRecentEmail = email
+    }
+  }
+  return mostRecentEmail
+}
 
 // Load client secrets from a local file.
 function getMatches() {
@@ -87,89 +117,70 @@ function getNewToken(oAuth2Client, callback) {
 async function parseEmail(auth) {
   const gmail = google.gmail({version: 'v1', auth})
 
-
   return new Promise(resolve => {
-    gmail.users.messages.list({userId: 'me'}, (err, res) => {
+    gmail.users.messages.list({userId: 'me'}, async (err, res) => {
       if (err) return console.log('The API returned an error: ' + err);
 
       const messages = res.data.messages;
 
-      if (messages.length) {
-        for (message of messages) {
-          gmail.users.messages.get({userId:'me',id:message.id}, async (err,res) => {
-            if (err)  {console.log('The API returned an error: ' + err); return}
-            const headers = res.data.payload.headers
-            const filteredHeaders = headers.filter(header => {
-              return header.value.includes('Tespa')
-            })
-
-            if(filteredHeaders.length) {
-              let hasRead = await new Promise(resolve => {
-                fs.readFile("currentMatches.json", (err,data) => {
-                  if(err) {resolve(false)} //no file found (inital write)
-                  else {
-                    let savedMatches = JSON.parse(data)
-                    if (savedMatches.timestamp < res.data.internalDate) { console.log("New matches found. Updating currentMatches.json"); resolve(false) }  //if this is more recent
-                    else { console.log("Returning currentMatches.json"); resolve(savedMatches); }
-                  }
-                })
-              })
-              console.log(hasRead)
-              if (hasRead) { resolve(hasRead); }
-              else {
-                var matchInfo = {}
-                const parts = res.data.payload.parts
-
-                const messageBody = Buffer.from(parts[1].body.data, "base64").toString();
-                const $ = cheerio.load(messageBody);
-                const spans = $("span")
-                const links = $("a")
-
-                for (i = 0; i < spans.length; i++) {
-                  var text = spans[i].children[0].data
-
-                  if(text == "Match 1") {
-                    var match1 =  {
-                      time: getTime(spans[i+2].children[0].data),
-                      maps: [spans[i+3].children[0].data.split(":")[1].trim(), spans[i+4].children[0].data.split(":")[1].trim(), spans[i+5].children[0].data.split(":")[1].trim()],
-                      university: spans[i+6].children[0].data.split(":")[1].trim(),
-                      name: spans[i+7].children[0].data.split(":")[1].trim(),
-                      bnet: spans[i+9].children[0].data.split(":")[1].trim(),
-                      discord: spans[i+10].children[0].data.split(":")[1].trim(),
-                      link: links[3].attribs.href
-                    }
-
-                    i+=11
-                    var match2 =  {
-                      time: getTime(spans[i+2].children[0].data),
-                      maps: [spans[i+3].children[0].data.split(":")[1].trim(), spans[i+4].children[0].data.split(":")[1].trim(), spans[i+5].children[0].data.split(":")[1].trim()],
-                      university: spans[i+6].children[0].data.split(":")[1].trim(),
-                      name: spans[i+7].children[0].data.split(":")[1].trim(),
-                      bnet: spans[i+8].children[0].data.split(":")[1].trim(),
-                      discord: spans[i+9].children[0].data.split(":")[1].trim(),
-                      link: links[4].attribs.href
-                    }
-
-                    matchInfo["timestamp"] = res.data.internalDate
-                    matchInfo["match1"] = match1
-                    matchInfo["match2"] = match2
-
-                    fs.writeFileSync("currentMatches.json", JSON.stringify(matchInfo, null, 2), err => {
-                      if(err) { console.log("Error writing to file currentMatches.json")}
-                      else { console.log("Successfully update currentMatches.json")}
-                    })
-                    resolve(matchInfo)
-                    break
-                  }
-                }
-              }
-            }
-          })
-        }
-      }
+      var tespaEmail = await filterTespaEmails(gmail, messages)
+      let hasRead = await new Promise(resolve => {
+        fs.readFile("currentMatches.json", (err,data) => {
+          if(err) {resolve(false)} //no file found (inital write)
+          else {
+            let savedMatches = JSON.parse(data)
+            if (parseInt(tespaEmail.data.internalDate) > savedMatches.timestamp) { console.log("New matches found. Updating currentMatches.json"); resolve(false) }  //if this is more recent
+            else { resolve(savedMatches); }
+          }
+        })
+      })
+      if (hasRead) { console.log("Returning currentMatches.json"); resolve(hasRead); }
       else {
-        console.log('No messages found.');
-        resolve(null)
+        var matchInfo = {}
+        const parts = tespaEmail.data.payload.parts
+
+        const messageBody = Buffer.from(parts[1].body.data, "base64").toString();
+        const $ = cheerio.load(messageBody);
+        const spans = $("span")
+        const links = $("a")
+
+        for (i = 0; i < spans.length; i++) {
+          var text = spans[i].children[0].data
+
+          if(text == "Match 1") {
+            var match1 =  {
+              time: getTime(spans[i+2].children[0].data),
+              maps: [spans[i+3].children[0].data.split(":")[1].trim(), spans[i+4].children[0].data.split(":")[1].trim(), spans[i+5].children[0].data.split(":")[1].trim()],
+              university: spans[i+6].children[0].data.split(":")[1].trim(),
+              name: spans[i+7].children[0].data.split(":")[1].trim(),
+              bnet: spans[i+9].children[0].data.split(":")[1].trim(),
+              discord: spans[i+10].children[0].data.split(":")[1].trim(),
+              link: links[1].attribs.href
+            }
+
+            i+=11
+            var match2 =  {
+              time: getTime(spans[i+2].children[0].data),
+              maps: [spans[i+3].children[0].data.split(":")[1].trim(), spans[i+4].children[0].data.split(":")[1].trim(), spans[i+5].children[0].data.split(":")[1].trim()],
+              university: spans[i+6].children[0].data.split(":")[1].trim(),
+              name: spans[i+7].children[0].data.split(":")[1].trim(),
+              bnet: spans[i+8].children[0].data.split(":")[1].trim(),
+              discord: spans[i+9].children[0].data.split(":")[1].trim(),
+              link: links[2].attribs.href
+            }
+
+            matchInfo["timestamp"] = parseInt(tespaEmail.data.internalDate)
+            matchInfo["match1"] = match1
+            matchInfo["match2"] = match2
+
+            fs.writeFileSync("currentMatches.json", JSON.stringify(matchInfo, null, 2), err => {
+              if(err) { console.log("Error writing to file currentMatches.json")}
+              else { console.log("Successfully update currentMatches.json")}
+            })
+            resolve(matchInfo)
+            break
+          }
+        }
       }
     });
   }).then(matches =>  {
